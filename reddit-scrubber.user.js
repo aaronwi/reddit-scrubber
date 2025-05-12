@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.2
+// @version      0.3
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
 // @match        https://old.reddit.com/user/*/comments/*

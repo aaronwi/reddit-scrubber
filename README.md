@@ -1,4 +1,4 @@
-# Reddit Scrubber
+# Reddit Scrubber v0.3
 
 This Tampermonkey user script helps mass-delete your own Reddit comments using the old Reddit UI.
 
@@ -7,7 +7,7 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 ## Usage
 1. Install [Tampermonkey](https://www.tampermonkey.net/)
 2. Add `reddit-scrubber.user.js` to Tampermonkey
-3. Visit `https://www.reddit.com/user/YOUR_USERNAME/comments`
+3. Visit `https://old.reddit.com/user/YOUR_USERNAME/comments`
 4. Let the script run — it will attempt to overwrite and delete comments
 
 ## Notes
