@@ -81,6 +81,10 @@
                 yesBtn.click();
                 console.log("Deleted comment.");
 
+                //get the comment id and hide it manually
+                const id = commentElement.id;
+                document.getElementById(id).style.display = 'none';
+
                 return true;
             } else {
                 console.warn("Yes button not found or not visible.");

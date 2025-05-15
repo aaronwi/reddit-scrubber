@@ -16,9 +16,9 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 
 ## Added
 - Pause button
+- Update DOM to show the comment was deleted
 
 ## TODO
 - Pagenation
 - Compatibility with RES
 - Compatibility with new reddit
-- Update DOM to show the comment was deleted
