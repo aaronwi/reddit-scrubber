@@ -1,22 +1,34 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.3
+// @version      0.4
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
 // @match        https://old.reddit.com/user/*/comments/*
 // @match        https://old.reddit.com/user/*/comments
 // @match        https://*.reddit.com/user/*/comments/*
 // @match        https://*.reddit.com/user/*/comments
-// @grant        none
+// @match        https://old.reddit.com/user/*/submitted/*
+// @match        https://old.reddit.com/user/*/submitted
+// @match        https://*.reddit.com/user/*/submitted/*
+// @match        https://*.reddit.com/user/*/submitted
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
-(function () {
+(async function () {
     'use strict';
 
-    const ACTION_DELAY = 5 * 1000; //5 second delay to be safe
+    const ACTION_DELAY = 10 * 1000; //5 second delay to be safe
     const RANDOM_STRING_LENGTH = 100;
     let paused = false;
+    //check if tapermonkey variable set, meaning we're on page 2 to pagenate
+    const shouldContinue = await GM_getValue("continueProcessing", false);
+    let currentCount = await GM_getValue("currentCount", 0);  // Start at 0 by default
+
+    if (shouldContinue) {
+        await processAllComments();
+    }
 
     console.log("Script executed.");
     function generateRandomString() {
@@ -97,21 +109,56 @@
     }
 
     async function processAllComments() {
-        if (!confirm('WARNING: This will overwrite and delete ALL visible comments. Continue?')) return;
+        //if shouldContinue isnt set, prompt, then it was called via button
+        if (!shouldContinue) {
+            if (!confirm('WARNING: This will overwrite and delete ALL visible comments. Continue?')) {
+                await GM_setValue("currentCount", 0);
+                await GM_setValue("continueProcessing", false);
+                return;
+            }
+            await GM_setValue("shouldContinue", true);
+            await GM_setValue("currentCount", 0);
+        }
 
-        const comments = document.querySelectorAll('.thing.comment');
         const status = createStatusElement();
 
+        const comments = document.querySelectorAll('.thing.comment');
+        if (comments.length === 0) {
+            console.log("No more comments found.");
+            await GM_setValue("continueProcessing", false);
+            await GM_setValue("currentCount", 0);
+            return;
+        }
+
+
         for (let i = 0; i < comments.length; i++) {
-            status.textContent = `Processing ${i + 1}/${comments.length}...`;
+            status.textContent = `Processing comment ${i + 1} of ${comments.length} on this page`;
             await waitWhilePaused();
             await processComment(comments[i]);
             await sleep(ACTION_DELAY);
         }
 
-        status.textContent = `Processed ${comments.length} comments.`;
-        setTimeout(() => status.remove(), 4000);
+        // Get the last comment to get its ID for next page
+        const last = comments[comments.length - 1];
+        const lastId = last?.getAttribute("data-fullname");
+
+        if (lastId) {
+            await GM_setValue("continueProcessing", true);
+            currentCount += 25;  // update local
+            await GM_setValue("currentCount", currentCount);  // save persistently
+
+            await sleep(2000);
+            const nextUrl = `${window.location.pathname}?count=${currentCount}&after=${lastId}`;
+            window.location.href = nextUrl;
+        } else {
+            // End of pagination
+            await GM_setValue("continueProcessing", false);
+            await GM_setValue("currentCount", 0);
+            status.remove();
+            console.log("All comments processed.");
+        }
     }
+
 
     function createStatusElement() {
         const status = document.createElement('div');
@@ -133,7 +180,7 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function addControlButton() {
+    async function addControlButton() {
         if (document.getElementById('processCommentsBtn')) {
             console.log("process comments button exists");
             return;
@@ -155,8 +202,9 @@
             borderRadius: '5px',
             boxShadow: '0 0 5px rgba(0,0,0,0.3)',
         });
-        btn.onclick = function() {
-            processAllComments();
+        btn.onclick = async function() {
+            await GM_setValue("continueProcessing", true); //persistent var to tell script we're mid processing'
+            await processAllComments();
         };
 
         // Pause/Resume button
