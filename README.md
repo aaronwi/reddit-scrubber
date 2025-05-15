@@ -14,6 +14,9 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 - Works only on old Reddit layout, and only currently visible comments, must manually change page
 - Will overwrite comments with gibberish and delete using a time delay at beginning of script, to prevent being rate limited or blocked
 
+## Added
+- Pause button
+
 ## TODO
 - Pagenation
 - Compatibility with RES

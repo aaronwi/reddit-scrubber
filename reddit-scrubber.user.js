@@ -6,8 +6,9 @@
 // @author       aaronwi
 // @match        https://old.reddit.com/user/*/comments/*
 // @match        https://old.reddit.com/user/*/comments
+// @match        https://*.reddit.com/user/*/comments/*
+// @match        https://*.reddit.com/user/*/comments
 // @grant        none
-// @run-at       document-end
 // ==/UserScript==
 
 (function () {
@@ -15,8 +16,9 @@
 
     const ACTION_DELAY = 5 * 1000; //5 second delay to be safe
     const RANDOM_STRING_LENGTH = 100;
+    let paused = false;
 
-
+    console.log("Script executed.");
     function generateRandomString() {
         let result = '';
         for (let i = 0; i < RANDOM_STRING_LENGTH; i++) {
@@ -25,8 +27,22 @@
         return result;
     }
 
+    function waitWhilePaused() {
+        return new Promise(resolve => {
+            const check = () => {
+                if (!paused) {
+                    resolve();
+                } else {
+                    setTimeout(check, 500);  // Check every 500ms
+                }
+            };
+            check();
+        });
+    }
+
     async function processComment(commentElement) {
         try {
+            console.log("Processing comments.");
             const editButton = commentElement.querySelector('a.edit-usertext');
             if (!editButton) return false;
 
@@ -84,8 +100,8 @@
 
         for (let i = 0; i < comments.length; i++) {
             status.textContent = `Processing ${i + 1}/${comments.length}...`;
+            await waitWhilePaused();
             await processComment(comments[i]);
-            debugger;
             await sleep(ACTION_DELAY);
         }
 
@@ -113,11 +129,9 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    console.log("Script loaded");
-
     function addControlButton() {
         if (document.getElementById('processCommentsBtn')) {
-            console.log("Button already exists, skipping creation");
+            console.log("process comments button exists");
             return;
         }
 
@@ -137,25 +151,48 @@
             borderRadius: '5px',
             boxShadow: '0 0 5px rgba(0,0,0,0.3)',
         });
-
         btn.onclick = function() {
-            console.log("Button clicked");
-            // Call your function here
             processAllComments();
         };
 
-        // Find the target element
+        // Pause/Resume button
+        const pauseBtn = document.createElement('button');
+        pauseBtn.id = 'pauseResumeBtn';
+        pauseBtn.textContent = 'Pause';
+        Object.assign(pauseBtn.style, {
+            position: 'relative',
+            marginLeft: '10px',
+            backgroundColor: 'orange',
+            color: 'black',
+            padding: '10px',
+            fontWeight: 'bold',
+            border: 'none',
+            cursor: 'pointer',
+            borderRadius: '5px',
+            boxShadow: '0 0 5px rgba(0,0,0,0.3)',
+        });
+        pauseBtn.onclick = function () {
+            paused = !paused;
+            pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+            console.log(paused ? 'Paused' : 'Resumed');
+        };
+
+        // Find the target element and insert buttons
         const dropdownElement = document.querySelector('.dropdown.lightdrop');
         if (dropdownElement) {
+
             dropdownElement.parentNode.insertBefore(btn, dropdownElement.nextSibling);
-            console.log("Added control button after the dropdown");
+            dropdownElement.parentNode.insertBefore(pauseBtn, btn.nextSibling);
+            console.log("inserted buttons");
         } else {
             console.warn("Dropdown element not found");
         }
     }
 
-    // Use window.onload for more reliable execution
-    window.onload = function () {
+    // insert control buttons on loading
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addControlButton);
+    } else {
         addControlButton();
-    };
+    }
 })();
