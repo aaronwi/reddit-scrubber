@@ -1,10 +1,13 @@
-# Reddit Scrubber v0.4
+# Reddit Scrubber v0.4.1
 
 This Tampermonkey user script helps mass-delete your own Reddit comments using the old Reddit UI.
 
 >  **USE AT YOUR OWN RISK.** Reddit may rate-limit or block these actions, be sure to use sufficient delay.
+
 >  I AM NOT RESPONSIBLE FOR ANY LEGAL TROUBLE OR ACCOUNT BAN/LIMIT YOU MAY ENCOUNTER, THIS SCRIPT WILL ALSO RUN VERY SLOWLY.
+
 >  At rate of 5 seconds per comment, your account will get locked for password reset after 2 pages
+
 >  Make sure you have an email tied to your account or you wont be able to unlock it if that happens!
 
 ## Usage
@@ -23,6 +26,7 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 - Pagenation
 - counter changed to live, not timed, only of current page, not total
 - Refactored code a bit and added some error checks
+- Fixed autostart trigger
 
 ## TODO
 - Compatibility with RES

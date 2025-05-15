@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.4
+// @version      0.4.1
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
 // @match        https://old.reddit.com/user/*/comments/*
@@ -21,16 +21,19 @@
 
     const ACTION_DELAY = 10 * 1000; //5 second delay to be safe
     const RANDOM_STRING_LENGTH = 100;
-    let paused = false;
-    //check if tapermonkey variable set, meaning we're on page 2 to pagenate
-    const shouldContinue = await GM_getValue("continueProcessing", false);
-    let currentCount = await GM_getValue("currentCount", 0);  // Start at 0 by default
 
-    if (shouldContinue) {
-        await processAllComments();
+    let currentCount = await GM_getValue("currentCount", 0);
+
+    let paused = false;
+
+    // Auto-run only on paginated pages
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPaginated = urlParams.has("count") && urlParams.has("after");
+
+    if (isPaginated) {
+        await processAllComments();  // no prompt needed
     }
 
-    console.log("Script executed.");
     function generateRandomString() {
         let result = '';
         for (let i = 0; i < RANDOM_STRING_LENGTH; i++) {
@@ -109,16 +112,6 @@
     }
 
     async function processAllComments() {
-        //if shouldContinue isnt set, prompt, then it was called via button
-        if (!shouldContinue) {
-            if (!confirm('WARNING: This will overwrite and delete ALL visible comments. Continue?')) {
-                await GM_setValue("currentCount", 0);
-                await GM_setValue("continueProcessing", false);
-                return;
-            }
-            await GM_setValue("shouldContinue", true);
-            await GM_setValue("currentCount", 0);
-        }
 
         const status = createStatusElement();
 
@@ -203,7 +196,15 @@
             boxShadow: '0 0 5px rgba(0,0,0,0.3)',
         });
         btn.onclick = async function() {
-            await GM_setValue("continueProcessing", true); //persistent var to tell script we're mid processing'
+
+            if (!confirm('WARNING: This will overwrite and delete ALL visible comments. Continue?')) {
+                await GM_setValue("continueProcessing", false);
+                await GM_setValue("currentCount", 0);
+                return;
+            }
+
+            await GM_setValue("continueProcessing", true);
+            await GM_setValue("currentCount", 0);
             await processAllComments();
         };
 
