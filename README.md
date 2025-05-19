@@ -1,4 +1,4 @@
-# Reddit Scrubber v0.4.1
+# Reddit Scrubber v0.5
 
 This Tampermonkey user script helps mass-delete your own Reddit comments using the old Reddit UI.
 
@@ -15,22 +15,19 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 2. Add `reddit-scrubber.user.js` to Tampermonkey
 3. Visit `https://old.reddit.com/user/YOUR_USERNAME/comments`
       OR `https://old.reddit.com/user/YOUR_USERNAME/submitted`
-      can omit `old.` if you have not opted into new reddit
 4. Let the script run — it will attempt to overwrite and delete comments
 
 ## Notes
-- Works only on old Reddit layout, it will automatically change page
-- Will overwrite comments with gibberish and delete using a time delay at beginning of script, to prevent being rate limited or blocked
+- Works only on old Reddit layout, it will automatically change page, and open and close new tabs per self post.
+- Will overwrite comments with gibberish and delete using the time delay at beginning of script, to prevent being rate limited or blocked
 
 ## Changes
-- Pagenation
-- counter changed to live, not timed, only of current page, not total
-- Refactored code a bit and added some error checks
-- Fixed autostart trigger
+- Refactored for each element type
+- Fixed autostart trigger again
+- Will now overwrite and delete both comments and posts
 
 ## TODO
 - Compatibility with RES
 - Compatibility with new reddit
-- Overwrite and delete posts
-- total comment count
 - random delays to look more organic
+- better error checking

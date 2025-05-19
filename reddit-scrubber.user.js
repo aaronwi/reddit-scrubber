@@ -1,17 +1,10 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.4.1
+// @version      0.5
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
-// @match        https://old.reddit.com/user/*/comments/*
-// @match        https://old.reddit.com/user/*/comments
-// @match        https://*.reddit.com/user/*/comments/*
-// @match        https://*.reddit.com/user/*/comments
-// @match        https://old.reddit.com/user/*/submitted/*
-// @match        https://old.reddit.com/user/*/submitted
-// @match        https://*.reddit.com/user/*/submitted/*
-// @match        https://*.reddit.com/user/*/submitted
+// @match        https://old.reddit.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
@@ -19,20 +12,110 @@
 (async function () {
     'use strict';
 
-    const ACTION_DELAY = 10 * 1000; //5 second delay to be safe
+    //new tab detection for deleting self posts
+    
+
+    const ACTION_DELAY = 10 * 1000; //10 second delay to be safe
     const RANDOM_STRING_LENGTH = 100;
+    const TOTAL_ELEMENTS = 25;
 
     let currentCount = await GM_getValue("currentCount", 0);
+    let continueProcessing = await GM_getValue("continueProcessing", false);
 
     let paused = false;
 
-    // Auto-run only on paginated pages
     const urlParams = new URLSearchParams(window.location.search);
     const isPaginated = urlParams.has("count") && urlParams.has("after");
+    const isNewTab = urlParams.has("NewTabToDelete");
+    const path = window.location.pathname;
 
-    if (isPaginated) {
-        await processAllComments();  // no prompt needed
+    //check if paginated and currently processing and continue automation
+    if (isPaginated && continueProcessing) {
+        await processAllThings();
+    
+    } else if (isNewTab) { //Check if it's a spawned tab for a self post
+        await sleep(1000);
+        await deleteSelfPost();
+
+        // try {
+        //     const deleteResult = await deleteSelfPost();
+
+        //     if (deleteResult.success) {
+        //         // Send message back to opener tab
+        //         window.opener.postMessage({
+        //             type: 'delete-success',
+        //             postId: deleteResult.postId,
+        //         }, 'https://old.reddit.com');
+        //     } else {
+        //         window.opener.postMessage({
+        //             type: 'delete-failure',
+        //             postId: deleteResult.postId,
+        //             reason: deleteResult.reason || "Unknown error"
+        //         }, 'https://old.reddit.com');
+        //     }
+        // } catch (err) {
+        //     console.error("Error during deleteSelfPost:", err);
+        //     window.opener.postMessage({
+        //         type: 'delete-failure',
+        //         postId: null,
+        //         reason: err.message || "Exception thrown"
+        //     }, 'https://old.reddit.com');
+        // }
     }
+
+    async function deleteSelfPost() {
+        try {
+            const postId = document.querySelector('[data-fullname]')?.dataset.fullname;
+            if (!postId) return reject(new Error("Could not find postId"));
+
+            // Click edit button
+            const editButton = document.querySelector('a.edit-usertext');
+            if (!editButton) return false;
+
+            editButton.click();
+            await sleep(1000);
+
+            //enter text
+            const textarea = document.querySelector('.usertext-edit textarea');
+            if (!textarea) throw new Error("Textarea not found");
+            
+            textarea.value = generateRandomString();
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                
+            //find and click save
+            const saveBtn = document.querySelector('button.save');
+            if (!saveBtn) throw new Error("Save button not found");
+
+            saveBtn.click();
+            await sleep(ACTION_DELAY);
+            
+
+            //Click delete
+            const deleteBtn = document.querySelector('form.del-button .togglebutton');
+            if (!deleteBtn) throw new Error("Delete button not found");
+            deleteBtn.click();
+            await sleep(1000); // Let the "yes/no" prompt load
+
+            const confirmDeleteBtn = document.querySelector('form.del-button .yes');
+            if (!confirmDeleteBtn) throw new Error("Confirm delete button not found");
+
+            confirmDeleteBtn.click();
+            await sleep(1000);
+            
+            // Inform opener
+            // if (window.opener) {
+            //     window.opener.postMessage({ type: "postDeleted", postId }, "*");
+            // }
+
+            window.close();
+            return true;
+            
+        } catch (err) {
+            console.error("Error in deleteSelfPost:", err);
+            throw err;
+        }
+    }
+
 
     function generateRandomString() {
         let result = '';
@@ -55,9 +138,77 @@
         });
     }
 
+    async function processAllThings() {
+        //comments use classes: .thing, .comment
+        //link posts classes: .thing, link
+        //self posts use classes: .thing, .link, .self
+        
+        //current page things
+        const things = document.querySelectorAll('.thing');
+        const status = createStatusElement();
+        const isLastPage = things.length < TOTAL_ELEMENTS;
+
+        //check if last/blank page
+        if (things.length === 0) {
+            status.textContent = "No items found on this page.";
+            await GM_setValue("continueProcessing", false);
+            await GM_setValue("currentCount", 0);
+            status.remove();
+            return;
+        }
+
+        for (let i = 0; i < things.length; i++) {
+            
+            await waitWhilePaused();
+            
+            if (!continueProcessing) {
+                console.log("Stopped mid-processing.");
+                await GM_setValue("continueProcessing", false);
+                await GM_setValue("currentCount", 0);
+                status.remove();
+                return;
+            }
+
+            status.textContent = `Processing item ${i + 1} of ${things.length}`;
+
+            const el = things[i];
+
+            if (el.classList.contains("comment")) {
+                await processComment(el);
+            } else if (el.classList.contains("self")) {
+                await processSelfPost(el);
+            } else {
+                await processLinkPost(el);
+            }
+
+            await sleep(ACTION_DELAY);
+
+        }
+
+        // Move to next page if not last page and still processing
+        if (!isLastPage && continueProcessing) {
+
+            // Get the last thing to get its ID for next page
+            const last = things[things.length - 1];
+            const lastId = last?.getAttribute("data-fullname");
+
+            if (lastId) {
+                currentCount += 25;  // update local
+                await GM_setValue("currentCount", currentCount);  // save persistently
+                const nextUrl = `${window.location.pathname}?count=${currentCount}&after=${lastId}`;
+                window.location.href = nextUrl;
+            } else {
+                // End of pagination
+                await GM_setValue("continueProcessing", false);
+                await GM_setValue("currentCount", 0);
+                status.textContent = "Finished processing.";
+            } 
+        }
+    }
+
     async function processComment(commentElement) {
         try {
-            console.log("Processing comments.");
+            console.log("Processing comment");
             const editButton = commentElement.querySelector('a.edit-usertext');
             if (!editButton) return false;
 
@@ -78,16 +229,7 @@
 
             // Open delete confirmation
             const deleteForm = commentElement.querySelector('form.del-button');
-            if (!deleteForm) {
-                console.warn("Delete form not found");
-                return false;
-            }
-
             const deleteToggle = deleteForm.querySelector('.togglebutton');
-            if (!deleteToggle) {
-                console.warn("Delete toggle not found");
-                return false;
-            }
             deleteToggle.click();
             await sleep(1000); // Let the "yes/no" prompt load
 
@@ -111,47 +253,52 @@
         return false;
     }
 
-    async function processAllComments() {
+    async function processSelfPost(postElement) {
+        const permalink = `https://old.reddit.com${postElement.dataset.permalink}`;
+        const postId = postElement.dataset.fullname;
 
-        const status = createStatusElement();
+        // Open new tab
+        const newTab = window.open(`${permalink}?NewTabToDelete=true`, "_blank");
 
-        const comments = document.querySelectorAll('.thing.comment');
-        if (comments.length === 0) {
-            console.log("No more comments found.");
-            await GM_setValue("continueProcessing", false);
-            await GM_setValue("currentCount", 0);
+        if (!newTab) {
+            window.alert("You need to allow popups to delete self posts");
             return;
         }
 
+        //quick hack to just wait for the window to finish processing
+        await sleep(10000);
+        // Wait for the delete result via postMessage
+        //const result = await waitForDeleteMessage(postId);
 
-        for (let i = 0; i < comments.length; i++) {
-            status.textContent = `Processing comment ${i + 1} of ${comments.length} on this page`;
-            await waitWhilePaused();
-            await processComment(comments[i]);
-            await sleep(ACTION_DELAY);
-        }
-
-        // Get the last comment to get its ID for next page
-        const last = comments[comments.length - 1];
-        const lastId = last?.getAttribute("data-fullname");
-
-        if (lastId) {
-            await GM_setValue("continueProcessing", true);
-            currentCount += 25;  // update local
-            await GM_setValue("currentCount", currentCount);  // save persistently
-
-            await sleep(2000);
-            const nextUrl = `${window.location.pathname}?count=${currentCount}&after=${lastId}`;
-            window.location.href = nextUrl;
-        } else {
-            // End of pagination
-            await GM_setValue("continueProcessing", false);
-            await GM_setValue("currentCount", 0);
-            status.remove();
-            console.log("All comments processed.");
-        }
+        // if (result.success) {
+        //     console.log(`Self-post ${postId} deleted`);
+        // } else {
+        //     console.warn(`Failed to delete self-post ${postId}: ${result.reason}`);
+        // }
     }
 
+    async function processLinkPost(postElement) {
+        // Open delete confirmation
+        const deleteForm = postElement.querySelector('form.del-button');
+        const deleteToggle = deleteForm.querySelector('.togglebutton');
+        deleteToggle.click();
+        await sleep(1000); // Let the "yes/no" prompt load
+
+        const yesBtn = deleteForm.querySelector('.yes');
+        if (yesBtn && yesBtn.style.display !== 'none') {
+            yesBtn.click();
+            console.log("Deleted comment.");
+
+            //get the comment id and hide it manually
+            const id = postElement.id;
+            document.getElementById(id).style.display = 'none';
+
+            return true;
+        } else {
+            console.warn("Yes button not found or not visible.");
+        }
+
+    }
 
     function createStatusElement() {
         const status = document.createElement('div');
@@ -196,16 +343,23 @@
             boxShadow: '0 0 5px rgba(0,0,0,0.3)',
         });
         btn.onclick = async function() {
-
-            if (!confirm('WARNING: This will overwrite and delete ALL visible comments. Continue?')) {
+            if (continueProcessing) {
+                // Stop processing
                 await GM_setValue("continueProcessing", false);
-                await GM_setValue("currentCount", 0);
-                return;
+                continueProcessing = false;
+                btn.textContent = 'START';
+                console.log('Processing stopped by user.');
+            } else {
+                if (confirm('WARNING: This will overwrite and delete ALL visible comments or posts. Continue?')) {
+                    await GM_setValue("continueProcessing", true);
+                    continueProcessing = true;
+                    await GM_setValue("currentCount", 0);
+                    currentCount = 0;
+                    paused = false;
+                    btn.textContent = 'STOP';
+                    await processAllThings(path);
+                }
             }
-
-            await GM_setValue("continueProcessing", true);
-            await GM_setValue("currentCount", 0);
-            await processAllComments();
         };
 
         // Pause/Resume button
@@ -233,7 +387,6 @@
         // Find the target element and insert buttons
         const dropdownElement = document.querySelector('.dropdown.lightdrop');
         if (dropdownElement) {
-
             dropdownElement.parentNode.insertBefore(btn, dropdownElement.nextSibling);
             dropdownElement.parentNode.insertBefore(pauseBtn, btn.nextSibling);
             console.log("inserted buttons");
@@ -248,4 +401,5 @@
     } else {
         addControlButton();
     }
+    
 })();
