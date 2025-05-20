@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.5
+// @version      0.5.1
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
 // @match        https://old.reddit.com/*
@@ -12,9 +12,6 @@
 (async function () {
     'use strict';
 
-    //new tab detection for deleting self posts
-    
-
     const ACTION_DELAY = 10 * 1000; //10 second delay to be safe
     const RANDOM_STRING_LENGTH = 100;
     const TOTAL_ELEMENTS = 25;
@@ -22,12 +19,14 @@
     let currentCount = await GM_getValue("currentCount", 0);
     let continueProcessing = await GM_getValue("continueProcessing", false);
 
+    const username = document.querySelector('.user a')?.textContent.trim().toLowerCase();
+    const pathname = window.location.pathname.toLowerCase();
+
     let paused = false;
 
     const urlParams = new URLSearchParams(window.location.search);
     const isPaginated = urlParams.has("count") && urlParams.has("after");
     const isNewTab = urlParams.has("NewTabToDelete");
-    const path = window.location.pathname;
 
     //check if paginated and currently processing and continue automation
     if (isPaginated && continueProcessing) {
@@ -329,7 +328,7 @@
         // Create the button element
         const btn = document.createElement('button');
         btn.id = 'processCommentsBtn';
-        btn.textContent = 'OVERWRITE & DELETE COMMENTS';
+        btn.textContent = 'START';
         Object.assign(btn.style, {
             position: 'relative', // Relative to its parent element
             marginLeft: '10px',
@@ -357,7 +356,7 @@
                     currentCount = 0;
                     paused = false;
                     btn.textContent = 'STOP';
-                    await processAllThings(path);
+                    await processAllThings();
                 }
             }
         };
@@ -384,14 +383,15 @@
             console.log(paused ? 'Paused' : 'Resumed');
         };
 
-        // Find the target element and insert buttons
-        const dropdownElement = document.querySelector('.dropdown.lightdrop');
-        if (dropdownElement) {
-            dropdownElement.parentNode.insertBefore(btn, dropdownElement.nextSibling);
-            dropdownElement.parentNode.insertBefore(pauseBtn, btn.nextSibling);
-            console.log("inserted buttons");
-        } else {
-            console.warn("Dropdown element not found");
+        //Check if we're on the right page for inserting buttons
+        
+        if (pathname.includes(username)) {
+            // Find the target element and insert buttons
+            const beforeElement = document.querySelector(".titlebox")
+            if (beforeElement) {
+                beforeElement.parentNode.insertBefore(btn, beforeElement.nextSibling);
+                beforeElement.parentNode.insertBefore(pauseBtn, btn.nextSibling);
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-# Reddit Scrubber v0.5
+# Reddit Scrubber v0.5.1
 
 This Tampermonkey user script helps mass-delete your own Reddit comments using the old Reddit UI.
 
@@ -22,9 +22,7 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 - Will overwrite comments with gibberish and delete using the time delay at beginning of script, to prevent being rate limited or blocked
 
 ## Changes
-- Refactored for each element type
-- Fixed autostart trigger again
-- Will now overwrite and delete both comments and posts
+- UI fixes
 
 ## TODO
 - Compatibility with RES
