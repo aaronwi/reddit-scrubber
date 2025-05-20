@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reddit Scrubber
 // @namespace    https://github.com/aaronwi
-// @version      0.5.1
+// @version      0.5.2
 // @description  Tapermonkey script to replace Reddit comments with random text and delete them
 // @author       aaronwi
 // @match        https://old.reddit.com/*
@@ -18,9 +18,6 @@
 
     let currentCount = await GM_getValue("currentCount", 0);
     let continueProcessing = await GM_getValue("continueProcessing", false);
-
-    const username = document.querySelector('.user a')?.textContent.trim().toLowerCase();
-    const pathname = window.location.pathname.toLowerCase();
 
     let paused = false;
 
@@ -164,6 +161,8 @@
                 console.log("Stopped mid-processing.");
                 await GM_setValue("continueProcessing", false);
                 await GM_setValue("currentCount", 0);
+                currentCount = 0;
+                continueProcessing = false;
                 status.remove();
                 return;
             }
@@ -384,10 +383,10 @@
         };
 
         //Check if we're on the right page for inserting buttons
-        
-        if (pathname.includes(username)) {
-            // Find the target element and insert buttons
-            const beforeElement = document.querySelector(".titlebox")
+        const username = document.querySelector('.user a')?.textContent.trim().toLowerCase();
+        const pathname = window.location.pathname.toLowerCase();
+        if (username && pathname.startsWith(`/user/${username}`)) {
+            const beforeElement = document.querySelector(".titlebox");
             if (beforeElement) {
                 beforeElement.parentNode.insertBefore(btn, beforeElement.nextSibling);
                 beforeElement.parentNode.insertBefore(pauseBtn, btn.nextSibling);

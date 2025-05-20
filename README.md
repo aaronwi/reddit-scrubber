@@ -1,4 +1,4 @@
-# Reddit Scrubber v0.5.1
+# Reddit Scrubber v0.5.2
 
 This Tampermonkey user script helps mass-delete your own Reddit comments using the old Reddit UI.
 
