@@ -11,8 +11,8 @@ This Tampermonkey user script helps mass-delete your own Reddit comments using t
 >  Make sure you have an email tied to your account or you wont be able to unlock it if that happens!
 
 ## Usage
-1. Install [Tampermonkey](https://www.tampermonkey.net/)
-2. Add `reddit-scrubber.user.js` to Tampermonkey
+1. Install [Violentmonkey](https://violentmonkey.github.io) or [Greasemonkey](https://www.greasespot.net), not closed source TamperMonkey
+2. Add `reddit-scrubber.user.js` to the above extension
 3. Visit `https://old.reddit.com/user/YOUR_USERNAME/comments`
       OR `https://old.reddit.com/user/YOUR_USERNAME/submitted`
 4. Let the script run — it will attempt to overwrite and delete comments
